@@ -1,0 +1,58 @@
+services:
+  # ─── قاعدة بيانات MongoDB ───────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: sudacards-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - sudacards-net
+
+  # ─── السيرفر الخلفي (Backend API) ──────────────────────
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: sudacards-backend
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongo:27017/sudacards
+      - JWT_SECRET=${JWT_SECRET:-change_me_to_a_random_secret_key}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_SECURE=${SMTP_SECURE:-true}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-"SudaCard <noreply@sudacard.com>"}
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      - mongo
+    networks:
+      - sudacards-net
+
+  # ─── واجهة التطبيق (Flutter Web + Nginx) ───────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sudacards-app
+    ports:
+      - "5000:5000"
+      - "80:80"
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - sudacards-net
+
+volumes:
+  mongo_data:
+  uploads_data:
+
+networks:
+  sudacards-net:
+    driver: bridge

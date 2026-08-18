@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:sudacards/screens/register/otp_verification_screen.dart';
 import 'package:sudacards/models/user_account.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sudacards/services/api_service.dart';
 /// ─────────────────────────────────────────────────────────────────────────────
 /// RegisterFormController
 /// هذا الكنترولر مسؤول عن التعامل مع جميع المدخلات والصور والمنطق الخاص بالتسجيل
@@ -140,7 +141,7 @@ class RegisterFormController extends ChangeNotifier {
       String deviceId = await RegistrationService.getDeviceId();
 
       // 2. إرسال الطلب الفعلي للسيرفر كـ Multipart Request لرفع الصور
-      final uri = Uri.parse('http://10.0.2.2:5000/api/users/register');
+      final uri = Uri.parse('${ApiService.baseUrl}/users/register');
       final request = http.MultipartRequest('POST', uri);
 
       // إضافة الحقول النصية (Text Fields)

@@ -4,12 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'session_manager.dart';
 
 class ApiService {
+  // ─── إعدادات السيرفر (Hostinger VPS) ──────────────────────
+  static const String _serverHost = '2.24.108.101';
+  static const int _serverPort = 5000;
+
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:5000/api';
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:5000/api';
-    }
-    return 'http://localhost:5000/api';
+    // للتطوير المحلي: استخدم localhost
+    if (kIsWeb && kDebugMode) return 'http://localhost:$_serverPort/api';
+    // للإنتاج (ويب وموبايل): استخدم IP السيرفر على المنفذ 5000
+    return 'http://$_serverHost:$_serverPort/api';
   }
 
   static Future<Map<String, String>> _getHeaders() async {
@@ -25,7 +28,7 @@ class ApiService {
     return await http.get(
       Uri.parse('$baseUrl$endpoint'),
       headers: await _getHeaders(),
-    ).timeout(const Duration(seconds: 10));
+    ).timeout(const Duration(seconds: 15));
   }
 
   static Future<http.Response> post(String endpoint, Map<String, dynamic> body) async {
@@ -34,7 +37,7 @@ class ApiService {
       Uri.parse('$baseUrl$endpoint'),
       headers: await _getHeaders(),
       body: jsonEncode(body),
-    ).timeout(const Duration(seconds: 10));
+    ).timeout(const Duration(seconds: 15));
   }
 
   static Future<http.Response> put(String endpoint, Map<String, dynamic> body) async {
@@ -43,6 +46,6 @@ class ApiService {
       Uri.parse('$baseUrl$endpoint'),
       headers: await _getHeaders(),
       body: jsonEncode(body),
-    ).timeout(const Duration(seconds: 10));
+    ).timeout(const Duration(seconds: 15));
   }
 }
