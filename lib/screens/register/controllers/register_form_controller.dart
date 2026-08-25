@@ -219,7 +219,7 @@ class RegisterFormController extends ChangeNotifier {
     } catch (e) {
       debugPrint('[RegisterFormController] Connection error: $e');
       if (context.mounted) {
-        _showError('خطأ في الاتصال بالخادم. يرجى التأكد من تشغيل السيرفر على البورت 5000.');
+        _showError('خطأ في الاتصال بالخادم. يرجى التأكد من اتصالك بالإنترنت وسلامة الخادم.');
       }
     } finally {
       isRegistering = false;

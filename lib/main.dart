@@ -14,12 +14,12 @@ Future<void> main() async {
 
   // منطق مسح البيانات القديمة (مرة واحدة فقط) لضمان التوافق مع التعديلات الجديدة
   final prefs = await SharedPreferences.getInstance();
-  bool mappingDone = prefs.getBool('data_structure_updated_v2') ?? false;
+  bool mappingDone = prefs.getBool('data_structure_updated_v3') ?? false;
 
   if (!mappingDone) {
     await DatabaseService().clearAll();
     await prefs.clear(); // مسح الـ Preferences أيضاً
-    await prefs.setBool('data_structure_updated_v2', true);
+    await prefs.setBool('data_structure_updated_v3', true);
     debugPrint('[SYSTEM] تمت تهيئة البيانات القديمة لضمان التوافق ✅');
   }
 

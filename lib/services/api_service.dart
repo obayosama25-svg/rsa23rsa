@@ -6,13 +6,11 @@ import 'session_manager.dart';
 class ApiService {
   // ─── إعدادات السيرفر (Hostinger VPS) ──────────────────────
   static const String _serverHost = '2.24.108.101';
-  static const int _serverPort = 5000;
+  static const int _prodPort = 8080;
 
   static String get baseUrl {
-    // للتطوير المحلي: استخدم localhost
-    if (kIsWeb && kDebugMode) return 'http://localhost:$_serverPort/api';
-    // للإنتاج (ويب وموبايل): استخدم IP السيرفر على المنفذ 5000
-    return 'http://$_serverHost:$_serverPort/api';
+    // الاتصال الدائم بسيرفر الـ VPS فقط
+    return 'http://$_serverHost:$_prodPort/api';
   }
 
   static Future<Map<String, String>> _getHeaders() async {

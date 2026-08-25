@@ -37,6 +37,22 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// ─── مسار لتفريغ قاعدة البيانات (لإزالة البيانات الوهمية) ──
+app.get('/api/health/reset-db', async (req, res) => {
+  if (req.query.secret !== 'sudacards-clean-123') {
+    return res.status(403).json({ success: false, message: 'غير مصرح' });
+  }
+  try {
+    const User = require('./models/User');
+    const Transaction = require('./models/Transaction');
+    await User.deleteMany({});
+    await Transaction.deleteMany({});
+    res.json({ success: true, message: 'تم مسح جميع البيانات من قاعدة البيانات بنجاح' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'حدث خطأ أثناء مسح البيانات' });
+  }
+});
+
 // ─── 404 handler ────────────────────────────────────────────
 app.use('/api/*', (_req, res) => {
   res.status(404).json({
