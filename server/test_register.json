@@ -1,0 +1,13 @@
+{
+  "category": "individual",
+  "email": "obayosama@gmail.com",
+  "password": "Password123@",
+  "deviceId": "web_chrome_12345",
+  "name": "Chrome Browser",
+  "deviceName": "Chrome Browser",
+  "deviceModel": "Web",
+  "firstName": "Obay",
+  "middleName": "Osama",
+  "lastName": "Ali",
+  "dateOfBirth": "1995-01-01T00:00:00.000Z"
+}

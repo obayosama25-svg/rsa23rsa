@@ -159,13 +159,28 @@ class RegisterFormController extends ChangeNotifier {
         
         // إضافة الصور المرفوعة للأفراد
         if (personalPhoto != null) {
-          request.files.add(await http.MultipartFile.fromPath('personalPhoto', personalPhoto!.path));
+          final bytes = await personalPhoto!.readAsBytes();
+          request.files.add(http.MultipartFile.fromBytes(
+            'personalPhoto',
+            bytes,
+            filename: personalPhoto!.name.isNotEmpty ? personalPhoto!.name : 'personalPhoto.jpg',
+          ));
         }
         if (idPhoto != null) {
-          request.files.add(await http.MultipartFile.fromPath('idPhoto', idPhoto!.path));
+          final bytes = await idPhoto!.readAsBytes();
+          request.files.add(http.MultipartFile.fromBytes(
+            'idPhoto',
+            bytes,
+            filename: idPhoto!.name.isNotEmpty ? idPhoto!.name : 'idPhoto.jpg',
+          ));
         }
         if (signaturePhoto != null) {
-          request.files.add(await http.MultipartFile.fromPath('signaturePhoto', signaturePhoto!.path));
+          final bytes = await signaturePhoto!.readAsBytes();
+          request.files.add(http.MultipartFile.fromBytes(
+            'signaturePhoto',
+            bytes,
+            filename: signaturePhoto!.name.isNotEmpty ? signaturePhoto!.name : 'signaturePhoto.jpg',
+          ));
         }
       } else {
         request.fields['entityName'] = entityNameController.text.trim();
@@ -175,10 +190,20 @@ class RegisterFormController extends ChangeNotifier {
 
         // إضافة الصور المرفوعة للشركات
         if (commercialDocPhoto != null) {
-          request.files.add(await http.MultipartFile.fromPath('commercialDocPhoto', commercialDocPhoto!.path));
+          final bytes = await commercialDocPhoto!.readAsBytes();
+          request.files.add(http.MultipartFile.fromBytes(
+            'commercialDocPhoto',
+            bytes,
+            filename: commercialDocPhoto!.name.isNotEmpty ? commercialDocPhoto!.name : 'commercialDocPhoto.jpg',
+          ));
         }
         if (logoPhoto != null) {
-          request.files.add(await http.MultipartFile.fromPath('logoPhoto', logoPhoto!.path));
+          final bytes = await logoPhoto!.readAsBytes();
+          request.files.add(http.MultipartFile.fromBytes(
+            'logoPhoto',
+            bytes,
+            filename: logoPhoto!.name.isNotEmpty ? logoPhoto!.name : 'logoPhoto.jpg',
+          ));
         }
       }
 

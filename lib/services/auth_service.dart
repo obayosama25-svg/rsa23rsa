@@ -102,13 +102,13 @@ class AuthService {
       request.fields['lastName'] = lastName.trim();
       request.fields['dateOfBirth'] = dateOfBirth.toIso8601String();
 
-      if (idImagePath != null) {
+      if (idImagePath != null && !kIsWeb) {
         request.files.add(await http.MultipartFile.fromPath('idPhoto', idImagePath));
       }
-      if (personalPhotoPath != null) {
+      if (personalPhotoPath != null && !kIsWeb) {
         request.files.add(await http.MultipartFile.fromPath('personalPhoto', personalPhotoPath));
       }
-      if (signaturePhotoPath != null) {
+      if (signaturePhotoPath != null && !kIsWeb) {
         request.files.add(await http.MultipartFile.fromPath('signaturePhoto', signaturePhotoPath));
       }
 

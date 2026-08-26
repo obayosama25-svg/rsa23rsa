@@ -33,21 +33,28 @@ class DatabaseService {
   static const String tableSettings = 'settings';
 
   // ─── الحصول على قاعدة البيانات ─────────────────────────────────
-  Future<Database> get database async {
+  Future<Database?> get database async {
+    if (kIsWeb) return null;
     _database ??= await _initDatabase();
-    return _database!;
+    return _database;
   }
 
-  Future<Database> _initDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, _dbName);
+  Future<Database?> _initDatabase() async {
+    if (kIsWeb) return null;
+    try {
+      final dbPath = await getDatabasesPath();
+      final path = join(dbPath, _dbName);
 
-    return await openDatabase(
-      path,
-      version: _dbVersion,
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-    );
+      return await openDatabase(
+        path,
+        version: _dbVersion,
+        onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
+      );
+    } catch (e) {
+      debugPrint('[DB] تعذر تهيئة SQLite محلياً: $e');
+      return null;
+    }
   }
 
   // ─── إنشاء الجداول ─────────────────────────────────────────────
@@ -127,6 +134,7 @@ class DatabaseService {
   /// TODO: [BACKEND] استبدل هذا بـ POST /api/users عند ربط السيرفر
   Future<void> insertUser(UserAccount user) async {
     final db = await database;
+    if (db == null) return;
     await db.insert(
       tableUsers,
       user.toMap(),
@@ -141,6 +149,7 @@ class DatabaseService {
   /// TODO: [BACKEND] استبدل بـ GET /api/users/:id
   Future<UserAccount?> getUserById(String id) async {
     final db = await database;
+    if (db == null) return null;
     final maps = await db.query(
       tableUsers,
       where: 'id = ?',
@@ -155,6 +164,7 @@ class DatabaseService {
   /// TODO: [BACKEND] استبدل بـ GET /api/users?email=:email
   Future<UserAccount?> getUserByEmail(String email) async {
     final db = await database;
+    if (db == null) return null;
     final maps = await db.query(
       tableUsers,
       where: 'email = ?',
@@ -169,6 +179,7 @@ class DatabaseService {
   /// TODO: [BACKEND] استبدل بـ GET /api/device/:deviceId/user
   Future<UserAccount?> getUserByDeviceId(String deviceId) async {
     final db = await database;
+    if (db == null) return null;
     final bindings = await db.query(
       tableDeviceBindings,
       where: 'deviceId = ?',
@@ -184,6 +195,7 @@ class DatabaseService {
   /// TODO: [BACKEND] استبدل بـ PATCH /api/users/:id
   Future<void> updateUser(UserAccount user) async {
     final db = await database;
+    if (db == null) return;
     await db.update(
       tableUsers,
       user.toMap(),
@@ -196,6 +208,7 @@ class DatabaseService {
   /// تحديث رصيد المستخدم فقط
   Future<void> updateBalance(String userId, double newBalance) async {
     final db = await database;
+    if (db == null) return;
     await db.update(
       tableUsers,
       {'balance': newBalance},
@@ -208,6 +221,7 @@ class DatabaseService {
   /// TODO: [BACKEND] استبدل بـ PATCH /api/users/:id/pin
   Future<void> updatePin(String userId, String newPinHash) async {
     final db = await database;
+    if (db == null) return;
     await db.update(
       tableUsers,
       {'pinHash': newPinHash},
@@ -221,6 +235,7 @@ class DatabaseService {
   Future<void> updateLoginPassword(
       String userId, String newLoginPasswordHash) async {
     final db = await database;
+    if (db == null) return;
     await db.update(
       tableUsers,
       {'loginPasswordHash': newLoginPasswordHash},
@@ -232,6 +247,7 @@ class DatabaseService {
   /// التحقق من أن الجهاز غير مرتبط بحساب آخر
   Future<bool> isDeviceFree(String deviceId) async {
     final db = await database;
+    if (db == null) return true;
     final res = await db.query(
       tableDeviceBindings,
       where: 'deviceId = ?',
@@ -249,6 +265,7 @@ class DatabaseService {
   /// TODO: [BACKEND] استبدل بـ POST /api/transactions
   Future<void> insertTransaction(app_tx.Transaction tx) async {
     final db = await database;
+    if (db == null) return;
     await db.insert(
       tableTransactions,
       tx.toMap(),
@@ -261,6 +278,7 @@ class DatabaseService {
   /// TODO: [BACKEND] استبدل بـ GET /api/users/:id/transactions
   Future<List<app_tx.Transaction>> getUserTransactions(String userId) async {
     final db = await database;
+    if (db == null) return [];
     final maps = await db.query(
       tableTransactions,
       where: 'senderId = ? OR receiverId = ?',
@@ -276,6 +294,7 @@ class DatabaseService {
 
   Future<void> _bindDevice(String deviceId, String userId) async {
     final db = await database;
+    if (db == null) return;
     await db.insert(
       tableDeviceBindings,
       {
@@ -294,6 +313,7 @@ class DatabaseService {
 
   Future<void> saveSetting(String key, String value) async {
     final db = await database;
+    if (db == null) return;
     await db.insert(
       tableSettings,
       {
@@ -307,6 +327,7 @@ class DatabaseService {
 
   Future<String?> getSetting(String key) async {
     final db = await database;
+    if (db == null) return null;
     final res = await db.query(
       tableSettings,
       where: 'key = ?',
@@ -324,6 +345,7 @@ class DatabaseService {
   /// حذف كل البيانات (للتطوير فقط)
   Future<void> clearAll() async {
     final db = await database;
+    if (db == null) return;
     await db.delete(tableTransactions);
     await db.delete(tableDeviceBindings);
     await db.delete(tableSettings);

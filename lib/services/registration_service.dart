@@ -75,7 +75,9 @@ class RegistrationService {
     try {
       if (kIsWeb) {
         final webInfo = await deviceInfo.webBrowserInfo;
-        deviceId = webInfo.vendor ?? 'web_browser';
+        final name = webInfo.browserName.name;
+        final hash = (webInfo.userAgent ?? 'web').hashCode.abs();
+        deviceId = 'web_${name}_$hash';
       } else if (Platform.isAndroid) {
         final androidInfo = await deviceInfo.androidInfo;
         deviceId = androidInfo.id;

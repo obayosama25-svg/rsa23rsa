@@ -22,6 +22,15 @@ const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } }); // 5M
 
 // ─── إعداد Nodemailer لإرسال OTP ─────────────────────────
 function getMailTransporter() {
+  if (process.env.SMTP_HOST === 'smtp.gmail.com' || (process.env.SMTP_USER && process.env.SMTP_USER.includes('@gmail.com'))) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  }
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.hostinger.com',
     port: parseInt(process.env.SMTP_PORT || '465'),

@@ -1,6 +1,7 @@
 import 'package:sudacards/theme/app_colors.dart';
 import 'package:sudacards/theme/theme_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:app_links/app_links.dart';
 import 'screens/splash_screen.dart';
@@ -17,7 +18,13 @@ Future<void> main() async {
   bool mappingDone = prefs.getBool('data_structure_updated_v3') ?? false;
 
   if (!mappingDone) {
-    await DatabaseService().clearAll();
+    if (!kIsWeb) {
+      try {
+        await DatabaseService().clearAll();
+      } catch (e) {
+        debugPrint('[SYSTEM] خطأ في تهيئة قاعدة البيانات المحلية: $e');
+      }
+    }
     await prefs.clear(); // مسح الـ Preferences أيضاً
     await prefs.setBool('data_structure_updated_v3', true);
     debugPrint('[SYSTEM] تمت تهيئة البيانات القديمة لضمان التوافق ✅');
