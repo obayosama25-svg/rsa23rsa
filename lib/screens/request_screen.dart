@@ -262,6 +262,57 @@ class _RequestScreenState extends State<RequestScreen> {
     );
   }
 
+  Widget _buildHeader(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      child: Row(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: isDark ? Colors.white : Colors.black87,
+                size: 20,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Text(
+            _showQr ? 'مشاركة الفاتورة' : 'المطالبات المالية',
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const Spacer(),
+          if (_showQr)
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.primaryGreen.withValues(alpha: 0.1) : AppColors.primaryBlue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: TextButton.icon(
+                onPressed: _reset,
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: const Text('جديد', style: TextStyle(fontWeight: FontWeight.bold)),
+                style: TextButton.styleFrom(
+                  foregroundColor: isDark ? AppColors.primaryGreen : AppColors.primaryBlue,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTabSelector(bool isDark) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
