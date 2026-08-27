@@ -40,8 +40,10 @@ const userSchema = new mongoose.Schema(
 
     // صور الوثائق
     idPhotoPath: { type: String, default: '' },
+    idImagePath: { type: String, default: '' },
     personalPhotoPath: { type: String, default: '' },
     signaturePhotoPath: { type: String, default: '' },
+    logoPhotoPath: { type: String, default: '' },
 
     // بيانات الحساب
     balance: { type: Number, default: 0.0 },

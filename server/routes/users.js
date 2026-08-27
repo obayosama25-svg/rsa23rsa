@@ -11,14 +11,20 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 
 // ─── إعداد Multer لرفع الصور ──────────────────────────────
+const fs = require('fs');
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, 'uploads/'),
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
   filename: (_req, file, cb) => {
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname || '.jpg')}`;
     cb(null, uniqueName);
   },
 });
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB max
+const upload = multer({ storage, limits: { fileSize: 15 * 1024 * 1024 } }); // 15MB max
 
 // ─── إعداد Nodemailer لإرسال OTP ─────────────────────────
 function getMailTransporter() {
@@ -130,9 +136,9 @@ router.post(
 
       // مسارات الصور
       const files = req.files || {};
-      const idPhotoPath = files.idPhoto ? files.idPhoto[0].path : '';
-      const personalPhotoPath = files.personalPhoto ? files.personalPhoto[0].path : '';
-      const signaturePhotoPath = files.signaturePhoto ? files.signaturePhoto[0].path : '';
+      const idPhotoPath = files.idPhoto ? `/uploads/${files.idPhoto[0].filename}` : '';
+      const personalPhotoPath = files.personalPhoto ? `/uploads/${files.personalPhoto[0].filename}` : '';
+      const signaturePhotoPath = files.signaturePhoto ? `/uploads/${files.signaturePhoto[0].filename}` : '';
 
       // إنشاء المستخدم
       const user = new User({
@@ -146,6 +152,7 @@ router.post(
         lastName: lastName.trim(),
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         idPhotoPath,
+        idImagePath: idPhotoPath,
         personalPhotoPath,
         signaturePhotoPath,
         otpCode,

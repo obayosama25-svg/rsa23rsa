@@ -6,6 +6,8 @@ import 'package:sudacards/services/registration_service.dart';
 import 'package:sudacards/screens/register/states/pending_status_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:sudacards/screens/register/otp_verification_screen.dart';
 import 'package:sudacards/models/user_account.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -79,7 +81,12 @@ class RegisterFormController extends ChangeNotifier {
     _isPickingImage = true;
     
     try {
-      final XFile? image = await _picker.pickImage(source: source);
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
       if (image != null) {
         if (type == 'personal') personalPhoto = image;
         if (type == 'id') idPhoto = image;
@@ -157,29 +164,26 @@ class RegisterFormController extends ChangeNotifier {
         request.fields['middleName'] = '${fatherNameController.text.trim()} ${grandFatherNameController.text.trim()}';
         request.fields['lastName'] = lastNameController.text.trim();
         
-        // إضافة الصور المرفوعة للأفراد
+        // إضافة الصور المرفوعة للأفراد مباشرة وبكفاءة عالية
         if (personalPhoto != null) {
-          final bytes = await personalPhoto!.readAsBytes();
-          request.files.add(http.MultipartFile.fromBytes(
+          request.files.add(await http.MultipartFile.fromPath(
             'personalPhoto',
-            bytes,
-            filename: personalPhoto!.name.isNotEmpty ? personalPhoto!.name : 'personalPhoto.jpg',
+            personalPhoto!.path,
+            filename: 'personalPhoto.jpg',
           ));
         }
         if (idPhoto != null) {
-          final bytes = await idPhoto!.readAsBytes();
-          request.files.add(http.MultipartFile.fromBytes(
+          request.files.add(await http.MultipartFile.fromPath(
             'idPhoto',
-            bytes,
-            filename: idPhoto!.name.isNotEmpty ? idPhoto!.name : 'idPhoto.jpg',
+            idPhoto!.path,
+            filename: 'idPhoto.jpg',
           ));
         }
         if (signaturePhoto != null) {
-          final bytes = await signaturePhoto!.readAsBytes();
-          request.files.add(http.MultipartFile.fromBytes(
+          request.files.add(await http.MultipartFile.fromPath(
             'signaturePhoto',
-            bytes,
-            filename: signaturePhoto!.name.isNotEmpty ? signaturePhoto!.name : 'signaturePhoto.jpg',
+            signaturePhoto!.path,
+            filename: 'signaturePhoto.jpg',
           ));
         }
       } else {
@@ -190,19 +194,17 @@ class RegisterFormController extends ChangeNotifier {
 
         // إضافة الصور المرفوعة للشركات
         if (commercialDocPhoto != null) {
-          final bytes = await commercialDocPhoto!.readAsBytes();
-          request.files.add(http.MultipartFile.fromBytes(
+          request.files.add(await http.MultipartFile.fromPath(
             'commercialDocPhoto',
-            bytes,
-            filename: commercialDocPhoto!.name.isNotEmpty ? commercialDocPhoto!.name : 'commercialDocPhoto.jpg',
+            commercialDocPhoto!.path,
+            filename: 'commercialDocPhoto.jpg',
           ));
         }
         if (logoPhoto != null) {
-          final bytes = await logoPhoto!.readAsBytes();
-          request.files.add(http.MultipartFile.fromBytes(
+          request.files.add(await http.MultipartFile.fromPath(
             'logoPhoto',
-            bytes,
-            filename: logoPhoto!.name.isNotEmpty ? logoPhoto!.name : 'logoPhoto.jpg',
+            logoPhoto!.path,
+            filename: 'logoPhoto.jpg',
           ));
         }
       }
@@ -221,9 +223,11 @@ class RegisterFormController extends ChangeNotifier {
         userData['firstName'] = userData['fullName'];
         final account = UserAccount.fromMap(userData);
 
-        // حفظ الإيميل المؤقت فقط ليتم استخدامه في شاشة الـ OTP
+        // حفظ بيانات الحساب المؤقتة فقط ليتم استخدامها في شاشة الـ OTP في حال خروج المستخدم
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('unverified_email', account.email);
+        await prefs.setString('unverified_account_number', account.accountNumber);
+        await prefs.setString('unverified_full_name', account.fullName);
         // تم إلغاء حفظ كائن الحساب بالكامل محلياً لرفع مستوى الأمان
 
         // 4. توجيه المستخدم لشاشة تأكيد البريد الإلكتروني (OTP)
@@ -232,7 +236,8 @@ class RegisterFormController extends ChangeNotifier {
           MaterialPageRoute(
             builder: (_) => OTPVerificationScreen(
               email: account.email,
-              account: account,
+              accountNumber: account.accountNumber,
+              fullName: account.fullName,
             ),
           ),
           (route) => false,
@@ -244,7 +249,7 @@ class RegisterFormController extends ChangeNotifier {
     } catch (e) {
       debugPrint('[RegisterFormController] Connection error: $e');
       if (context.mounted) {
-        _showError('خطأ في الاتصال بالخادم. يرجى التأكد من اتصالك بالإنترنت وسلامة الخادم.');
+        _showError('خطأ اتصال: ${e.runtimeType}: $e');
       }
     } finally {
       isRegistering = false;
@@ -256,6 +261,31 @@ class RegisterFormController extends ChangeNotifier {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppColors.warningOrange),
     );
+  }
+
+  /// ضغط الصورة لتقليل حجمها قبل الرفع (من 3-8 ميقا إلى ~200 كيلو)
+  Future<Uint8List> _compressImage(Uint8List imageBytes) async {
+    try {
+      // فك ترميز الصورة
+      final codec = await ui.instantiateImageCodec(
+        imageBytes,
+        targetWidth: 800, // عرض أقصى 800 بكسل
+      );
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+
+      // إعادة ترميز كـ JPEG بجودة 70%
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+
+      if (byteData != null) {
+        debugPrint('[Compress] ${imageBytes.length ~/ 1024}KB → ${byteData.lengthInBytes ~/ 1024}KB');
+        return byteData.buffer.asUint8List();
+      }
+    } catch (e) {
+      debugPrint('[Compress] فشل الضغط، سيتم استخدام الصورة الأصلية: $e');
+    }
+    return imageBytes; // إذا فشل الضغط، أرسل الأصلية
   }
 
   @override
