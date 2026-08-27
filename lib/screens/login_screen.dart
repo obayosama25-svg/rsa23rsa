@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'pending_approval_screen.dart';
 import '../services/session_manager.dart';
 import '../services/biometric_service.dart';
+import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -53,12 +54,43 @@ class _LoginScreenState extends State<LoginScreen>
     final isEnabled = await bioService.isBiometricEnabled();
     final creds = await bioService.getSavedBiometricCredentials();
 
+    if (!isAvailable || !isEnabled || creds == null) {
+      if (mounted) {
+        setState(() {
+          _isBiometricAvailable = false;
+        });
+      }
+      return;
+    }
+
+    // التحقق السريع من السيرفر للتأكد أن الحساب لم يتم حذفه أو تصفير السيرفر
+    final accountOrEmail = creds['accountNumber']?.isNotEmpty == true ? creds['accountNumber']! : creds['email']!;
+    if (accountOrEmail.isNotEmpty) {
+      try {
+        final res = await ApiService.get('/users/status/$accountOrEmail');
+        if (res.statusCode == 404) {
+          // الحساب غير موجود على السيرفر (تم حذفه أو تم تصفير قاعدة البيانات) -> تطهير فوري للهاتف
+          debugPrint('[LoginScreen] الحساب غير موجود على السيرفر، تنفيذ تطهير الهاتف... 🧹');
+          await bioService.purgeAllDeviceData();
+          if (mounted) {
+            setState(() {
+              _isBiometricAvailable = false;
+              _accountNumberController.clear();
+            });
+          }
+          return;
+        }
+      } catch (e) {
+        debugPrint('[LoginScreen] تعذر التحقق من حالة الحساب: $e');
+      }
+    }
+
     if (mounted) {
       setState(() {
-        _isBiometricAvailable = isAvailable && isEnabled && creds != null;
+        _isBiometricAvailable = true;
       });
 
-      if (creds != null && creds['accountNumber'] != null && _accountNumberController.text.isEmpty) {
+      if (creds['accountNumber'] != null && _accountNumberController.text.isEmpty) {
         _accountNumberController.text = creds['accountNumber']!;
       }
     }
@@ -75,6 +107,8 @@ class _LoginScreenState extends State<LoginScreen>
     if (result.isSuccess) {
       Navigator.pushReplacement(context, FadeInRoute(page: const HomeScreen()));
     } else {
+      await _checkBiometricStatus(); // تحديث فوري وإخفاء الزر إذا تم تطهير البيانات
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.errorMessage ?? 'فشل التحقق من البصمة'),

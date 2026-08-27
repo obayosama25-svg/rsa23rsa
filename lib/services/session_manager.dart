@@ -96,9 +96,10 @@ class SessionManager {
             debugPrint('[Session] تم استعادة الجلسة بأمان من السيرفر: ${_currentUser!.id} ✅');
             return _currentUser;
           }
-        } else if (response.statusCode == 401 || response.statusCode == 403) {
-          // فقط عند رفض السيرفر الصريح للتوكن يتم مسح الجلسة
-          debugPrint('[Session] التوكن غير صالح أو مرفوض من السيرفر ⚠️');
+        } else if (response.statusCode == 401 || response.statusCode == 403 || response.statusCode == 404) {
+          // فقط عند رفض السيرفر الصريح للتوكن أو عدم وجود الحساب يتم مسح وتطهير الجلسة
+          debugPrint('[Session] التوكن غير صالح أو الحساب غير موجود على السيرفر ⚠️');
+          await BiometricService().purgeAllDeviceData();
           await logout();
           return null;
         }
@@ -192,6 +193,10 @@ class SessionManager {
           debugPrint('[BiometricLogin] تم الدخول بالبصمة بنجاح ✅');
           return AuthResult.success(_currentUser!, savedToken);
         }
+      } else if (response.statusCode == 401 || response.statusCode == 403 || response.statusCode == 404) {
+        debugPrint('[BiometricLogin] الحساب غير موجود على السيرفر أو تم حذفه، تطهير البيانات... 🧹');
+        await bioService.purgeAllDeviceData();
+        return AuthResult.failure('الحساب غير موجود على السيرفر أو تم حذفه، تم تنظيف الهاتف');
       }
 
       return AuthResult.failure('انتهت صلاحية الجلسة، يرجى تسجيل الدخول بكلمة المرور');

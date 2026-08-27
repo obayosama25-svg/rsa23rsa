@@ -4,13 +4,13 @@ import 'package:flutter/rendering.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/invoice.dart';
 import '../models/user_account.dart';
 import '../theme/app_colors.dart';
 import '../widgets/cyber_background.dart';
 import '../services/api_service.dart';
+import '../services/session_manager.dart';
 
 /// شاشة إنشاء فاتورة وطلب الأموال
 class RequestScreen extends StatefulWidget {
@@ -45,19 +45,22 @@ class _RequestScreenState extends State<RequestScreen> {
   }
 
   Future<void> _loadAccount() async {
-    final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString('user_account');
-    if (json != null && mounted) {
-      setState(() {
-        _account = UserAccount.fromJson(json);
-      });
+    _account = SessionManager().currentUser;
+    if (_account == null) {
+      _account = await SessionManager().restoreSession();
+    }
+    if (mounted) {
+      setState(() {});
     }
   }
 
   Future<void> _generateInvoice() async {
     if (!_formKey.currentState!.validate()) return;
     if (_account == null) {
-      _showError('لم يتم تحميل بيانات الحساب');
+      _account = SessionManager().currentUser ?? await SessionManager().restoreSession();
+    }
+    if (_account == null) {
+      _showError('يرجى تسجيل الدخول أولاً لإنشاء طلب الأموال');
       return;
     }
 
@@ -89,11 +92,11 @@ class _RequestScreenState extends State<RequestScreen> {
           setState(() => _isGenerating = false);
         }
       } else {
-        _showError('خطأ في الاتصال بالخادم');
+        _showError('خطأ في الاتصال بالخادم: ${res.statusCode}');
         setState(() => _isGenerating = false);
       }
     } catch (e) {
-      _showError('تعذر الاتصال بالخادم');
+      _showError('تعذر الاتصال بالخادم: $e');
       setState(() => _isGenerating = false);
     }
   }

@@ -130,6 +130,29 @@ class BiometricService {
     await prefs.remove(_keyBiometricAccount);
     await prefs.remove(_keyBiometricToken);
     await prefs.remove(_keyBiometricEmail);
+    await prefs.remove(_keyBiometricEnabled);
     debugPrint('[Biometric] تم مسح اعتمادات البصمة 🗑️');
+  }
+
+  /// تطهير ومسح كافة البيانات وبقايا الحسابات السابقة من الهاتف بالكامل
+  Future<void> purgeAllDeviceData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyBiometricAccount);
+      await prefs.remove(_keyBiometricToken);
+      await prefs.remove(_keyBiometricEmail);
+      await prefs.remove(_keyBiometricEnabled);
+      await prefs.remove('session_token');
+      await prefs.remove('user_account');
+      await prefs.remove('pending_approval_email');
+      await prefs.remove('pending_approval_account');
+      await prefs.remove('pending_approval_name');
+      await prefs.remove('unverified_email');
+      await prefs.remove('unverified_account_number');
+      await prefs.remove('unverified_full_name');
+      debugPrint('[Biometric] تم تطهير ومسح كافة بقايا وبيانات الحساب السابقة من الهاتف بالكامل 🧹✅');
+    } catch (e) {
+      debugPrint('[Biometric] خطأ أثناء تطهير بيانات الهاتف: $e');
+    }
   }
 }

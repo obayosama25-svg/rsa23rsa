@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../widgets/app_logo.dart';
 import '../theme/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
+import '../services/biometric_service.dart';
 import 'login_screen.dart';
 import 'pending_approval_screen.dart';
 import 'package:sudacards/screens/register/otp_verification_screen.dart';
@@ -44,6 +46,24 @@ class _SplashScreenState extends State<SplashScreen> {
 
       final pendingEmail = prefs.getString('pending_approval_email');
       if (pendingEmail != null) {
+        // التحقق هل الحساب المعلق لا يزال موجوداً على السيرفر (أم تم تصفير السيرفر)
+        try {
+          final checkRes = await ApiService.get('/users/status/$pendingEmail');
+          if (checkRes.statusCode == 404) {
+            // الحساب محذوف من السيرفر -> تطهير الهاتف بالكامل
+            await BiometricService().purgeAllDeviceData();
+            if (!mounted) return;
+            Navigator.of(context).pushReplacement(
+              PageRouteBuilder(
+                transitionDuration: const Duration(milliseconds: 800),
+                pageBuilder: (_, _, _) => const LoginScreen(),
+                transitionsBuilder: (_, animation, _, child) => FadeTransition(opacity: animation, child: child),
+              ),
+            );
+            return;
+          }
+        } catch (_) {}
+
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
