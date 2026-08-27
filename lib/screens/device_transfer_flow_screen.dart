@@ -108,7 +108,7 @@ class _DeviceTransferFlowScreenState extends State<DeviceTransferFlowScreen> {
         body: jsonEncode({
           'accountNumber': widget.accountNumber,
           'deviceId': deviceId,
-          'otpCode': _otpController.text.trim(),
+          'otpCode': _normalizeDigits(_otpController.text),
           'answers': answers
         }),
       );
@@ -135,7 +135,23 @@ class _DeviceTransferFlowScreenState extends State<DeviceTransferFlowScreen> {
     }
   }
 
-  Widget _buildTextField(TextEditingController ctrl, String hint, {bool isObscure = false, TextInputType type = TextInputType.text}) {
+  String _normalizeDigits(String input) {
+    const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    var result = input;
+    for (int i = 0; i < arabic.length; i++) {
+      result = result.replaceAll(arabic[i], english[i]);
+    }
+    return result.trim();
+  }
+
+  Widget _buildTextField(TextEditingController ctrl, String hint, {
+    bool isObscure = false, 
+    TextInputType type = TextInputType.text,
+    TextDirection? textDirection,
+    TextAlign? textAlign,
+  }) {
+    final bool isNumberOrSecret = isObscure || type == TextInputType.number || type == TextInputType.phone || type == TextInputType.emailAddress;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -147,10 +163,17 @@ class _DeviceTransferFlowScreenState extends State<DeviceTransferFlowScreen> {
         controller: ctrl,
         obscureText: isObscure,
         keyboardType: type,
-        style: const TextStyle(color: Colors.white),
+        textDirection: textDirection ?? (isNumberOrSecret ? TextDirection.ltr : TextDirection.rtl),
+        textAlign: textAlign ?? (isNumberOrSecret ? TextAlign.center : TextAlign.start),
+        style: TextStyle(
+          color: Colors.white,
+          letterSpacing: isObscure ? 4 : (type == TextInputType.number ? 2 : 0),
+          fontWeight: isNumberOrSecret ? FontWeight.bold : FontWeight.normal,
+        ),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: const TextStyle(color: Colors.white54),
+          hintTextDirection: TextDirection.rtl,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
