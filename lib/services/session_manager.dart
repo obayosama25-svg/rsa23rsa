@@ -6,6 +6,7 @@ import 'auth_service.dart';
 import 'database_service.dart';
 import 'registration_service.dart';
 import 'api_service.dart';
+import 'biometric_service.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// SessionManager — إدارة جلسة المستخدم النشطة
@@ -124,9 +125,74 @@ class SessionManager {
     if (result.isSuccess && result.user != null) {
       _currentUser = result.user;
       await _saveSession(result.user!, result.token ?? '');
+
+      // تحديث بيانات البصمة في حال كانت مفعّلة مسبقاً
+      final bio = BiometricService();
+      if (await bio.isBiometricEnabled()) {
+        await bio.saveBiometricCredentials(
+          accountNumber: result.user!.accountNumber,
+          token: result.token ?? '',
+          email: result.user!.email,
+        );
+      }
     }
 
     return result;
+  }
+
+  /// تسجيل الدخول بالبصمة باستخدام الاعتمادات المحفوظة
+  Future<AuthResult> loginWithBiometric() async {
+    try {
+      final bioService = BiometricService();
+      final creds = await bioService.getSavedBiometricCredentials();
+      if (creds == null) {
+        return AuthResult.failure('لا توجد بيانات بصمة محفوظة، يرجى الدخول بكلمة المرور أولاً');
+      }
+
+      final authenticated = await bioService.authenticate(
+        localizedReason: 'يرجى تأكيد هويتك عبر البصمة لتسجيل الدخول إلى SudaCards',
+      );
+
+      if (!authenticated) {
+        return AuthResult.failure('فشل التحقق من البصمة أو تم إلغاؤه');
+      }
+
+      final savedToken = creds['token']!;
+      _token = savedToken;
+
+      final response = await ApiService.get('/users/me');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final serverUser = data['user'];
+          final currentDeviceId = await RegistrationService.getDeviceId();
+          _currentUser = UserAccount(
+            id: serverUser['_id'] ?? serverUser['userId'] ?? '',
+            accountNumber: serverUser['accountNumber'] ?? creds['accountNumber'] ?? '',
+            email: serverUser['email'] ?? creds['email'] ?? '',
+            loginPasswordHash: '',
+            passwordHash: '',
+            pinHash: '',
+            firstName: serverUser['firstName'] ?? '',
+            middleName: serverUser['middleName'] ?? '',
+            lastName: serverUser['lastName'] ?? '',
+            dateOfBirth: DateTime.now(),
+            balance: (serverUser['balance'] as num?)?.toDouble() ?? 0.0,
+            creationDate: DateTime.now(),
+            deviceId: currentDeviceId,
+            isActive: true,
+          );
+          await _saveSession(_currentUser!, savedToken);
+          debugPrint('[BiometricLogin] تم الدخول بالبصمة بنجاح ✅');
+          return AuthResult.success(_currentUser!, token: savedToken);
+        }
+      }
+
+      return AuthResult.failure('انتهت صلاحية الجلسة، يرجى تسجيل الدخول بكلمة المرور');
+    } catch (e) {
+      debugPrint('[BiometricLogin] خطأ في تسجيل الدخول بالبصمة: $e');
+      return AuthResult.failure('حدث خطأ أثناء المصادقة البيومترية');
+    }
   }
 
   /// تسجيل مستخدم جديد وحفظ جلسته تلقائياً

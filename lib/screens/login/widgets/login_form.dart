@@ -6,6 +6,8 @@ class LoginForm extends StatelessWidget {
   final TextEditingController passwordController;
   final bool isAuthenticating;
   final VoidCallback onLogin;
+  final bool isBiometricAvailable;
+  final VoidCallback? onBiometricLogin;
 
   const LoginForm({
     super.key,
@@ -13,6 +15,8 @@ class LoginForm extends StatelessWidget {
     required this.passwordController,
     required this.isAuthenticating,
     required this.onLogin,
+    this.isBiometricAvailable = false,
+    this.onBiometricLogin,
   });
 
   @override
@@ -129,6 +133,57 @@ class LoginForm extends StatelessWidget {
                   ),
           ),
         ),
+        if (isBiometricAvailable && onBiometricLogin != null) ...[
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: Container(height: 1, color: Colors.white12)),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  'أو باستخدام البصمة',
+                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ),
+              Expanded(child: Container(height: 1, color: Colors.white12)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          InkWell(
+            onTap: isAuthenticating ? null : onBiometricLogin,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                  width: 1.2,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(
+                    Icons.fingerprint_rounded,
+                    color: AppColors.primaryGreen,
+                    size: 26,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'تسجيل الدخول بالبصمة',
+                    style: TextStyle(
+                      color: AppColors.primaryGreen,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

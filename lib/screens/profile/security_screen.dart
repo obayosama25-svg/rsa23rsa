@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_colors.dart';
 import '../../services/api_service.dart';
 import '../../services/session_manager.dart';
+import '../../services/biometric_service.dart';
 import 'setup_security_questions_screen.dart';
 
 /// شاشة الأمان والخصوصية
@@ -16,7 +17,7 @@ class SecurityScreen extends StatefulWidget {
 class _SecurityScreenState extends State<SecurityScreen> {
   bool _isLoading         = true;
   bool _hasQuestions      = false;
-  bool _biometricEnabled  = true;
+  bool _biometricEnabled  = false;
   bool _loginNotif        = true;
   bool _twoFactor         = false;
   bool _hideBalance       = false;
@@ -40,11 +41,78 @@ class _SecurityScreenState extends State<SecurityScreen> {
       return;
     }
 
+    final isBioEnabled = await BiometricService().isBiometricEnabled();
+
     if (mounted) {
       setState(() {
         _hasQuestions = true;
+        _biometricEnabled = isBioEnabled;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _handleToggleBiometric(bool enable) async {
+    final bioService = BiometricService();
+    if (enable) {
+      final available = await bioService.isBiometricAvailable();
+      if (!available) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('جهازك لا يدعم المصادقة البيومترية أو لم تقم بتسجيل بصمة في إعدادات الهاتف'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+        return;
+      }
+
+      // طلب التحقق لتأكيد البصمة قبل التفعيل
+      final authenticated = await bioService.authenticate(
+        localizedReason: 'يرجى تأكيد بصمتك لتفعيل ميزة الدخول بالبصمة في SudaCards',
+      );
+
+      if (!authenticated) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('فشل التحقق من البصمة. لم يتم التفعيل.'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+        return;
+      }
+
+      final currentUser = SessionManager().currentUser;
+      final token = SessionManager().token;
+      if (currentUser != null && token != null && token.isNotEmpty) {
+        await bioService.saveBiometricCredentials(
+          accountNumber: currentUser.accountNumber,
+          token: token,
+          email: currentUser.email,
+        );
+      } else {
+        await bioService.setBiometricEnabled(true);
+      }
+
+      setState(() => _biometricEnabled = true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تفعيل الدخول بالبصمة بنجاح! 🔒'),
+          backgroundColor: AppColors.primaryGreen,
+        ),
+      );
+    } else {
+      await bioService.setBiometricEnabled(false);
+      setState(() => _biometricEnabled = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إلغاء تفعيل الدخول بالبصمة'),
+          backgroundColor: Colors.grey,
+        ),
+      );
     }
   }
 
@@ -160,11 +228,11 @@ class _SecurityScreenState extends State<SecurityScreen> {
                         _ToggleTile(
                           icon: Icons.fingerprint_rounded,
                           label: 'بصمة الإصبع / Face ID',
-                          sub: 'الدخول بالبيومترك',
+                          sub: _biometricEnabled ? 'مفعّلة لتسجيل الدخول السريع' : 'معطّلة (انقر للتفعيل)',
                           accent: const Color(0xFF10B981),
                           isDark: isDark,
                           value: _biometricEnabled,
-                          onChanged: (v) => setState(() => _biometricEnabled = v),
+                          onChanged: (v) => _handleToggleBiometric(v),
                         ),
                         _divider(isDark),
                         _ToggleTile(

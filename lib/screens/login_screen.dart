@@ -12,6 +12,7 @@ import 'recovery_flow_screen.dart';
 import 'device_transfer_flow_screen.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
+import '../services/biometric_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,6 +30,7 @@ class _LoginScreenState extends State<LoginScreen>
       TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isAuthenticating = false;
+  bool _isBiometricAvailable = false;
 
   @override
   void initState() {
@@ -41,6 +43,45 @@ class _LoginScreenState extends State<LoginScreen>
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
     _glowController.repeat(reverse: true);
+
+    _checkBiometricStatus();
+  }
+
+  Future<void> _checkBiometricStatus() async {
+    final bioService = BiometricService();
+    final isAvailable = await bioService.isBiometricAvailable();
+    final isEnabled = await bioService.isBiometricEnabled();
+    final creds = await bioService.getSavedBiometricCredentials();
+
+    if (mounted) {
+      setState(() {
+        _isBiometricAvailable = isAvailable && isEnabled && creds != null;
+      });
+
+      if (creds != null && creds['accountNumber'] != null && _accountNumberController.text.isEmpty) {
+        _accountNumberController.text = creds['accountNumber']!;
+      }
+    }
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    setState(() => _isAuthenticating = true);
+    
+    final result = await SessionManager().loginWithBiometric();
+
+    if (!mounted) return;
+    setState(() => _isAuthenticating = false);
+
+    if (result.isSuccess) {
+      Navigator.pushReplacement(context, FadeInRoute(page: const HomeScreen()));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.errorMessage ?? 'فشل التحقق من البصمة'),
+          backgroundColor: AppColors.errorRed,
+        ),
+      );
+    }
   }
 
   @override
@@ -194,6 +235,8 @@ class _LoginScreenState extends State<LoginScreen>
                               passwordController: _passwordController,
                               isAuthenticating: _isAuthenticating,
                               onLogin: _handleLogin,
+                              isBiometricAvailable: _isBiometricAvailable,
+                              onBiometricLogin: _handleBiometricLogin,
                             ),
                           ),
                         ),
