@@ -586,4 +586,32 @@ router.put('/security/biometric', auth, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════
+// GET /api/users/status/:identifier — فحص حالة موافقة الحساب
+// ═══════════════════════════════════════════════════════════
+router.get('/status/:identifier', async (req, res) => {
+  try {
+    const idParam = (req.params.identifier || '').toLowerCase().trim();
+    const user = await User.findOne({
+      $or: [
+        { email: idParam },
+        { accountNumber: idParam },
+      ]
+    });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'الحساب غير موجود' });
+    }
+
+    res.json({
+      success: true,
+      status: user.status,
+      isActive: user.isActive,
+      isApproved: user.status === 'approved' || (user.status === 'active' && user.isActive),
+    });
+  } catch (err) {
+    console.error('[STATUS] Error:', err);
+    res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+  }
+});
+
 module.exports = router;

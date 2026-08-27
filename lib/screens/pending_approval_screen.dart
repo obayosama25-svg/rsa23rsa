@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
-import '../../theme/app_colors.dart';
-import '../../widgets/app_logo.dart';
-import '../../services/session_manager.dart';
-import 'splash_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/app_colors.dart';
+import '../widgets/app_logo.dart';
+import '../services/session_manager.dart';
+import '../services/api_service.dart';
+import 'login_screen.dart';
 
 class PendingApprovalScreen extends StatefulWidget {
   const PendingApprovalScreen({super.key});
@@ -40,27 +43,64 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> with Sing
   Future<void> _checkStatus() async {
     setState(() => _isChecking = true);
     
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 2));
-    
-    if (!mounted) return;
-    setState(() => _isChecking = false);
-    
-    // TODO: Connect to backend to check status.
-    // For now, show a snackbar indicating it's still pending.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('الحساب لا يزال قيد المراجعة، يرجى الانتظار.'),
-        backgroundColor: Colors.orangeAccent,
-      ),
-    );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pendingEmail = prefs.getString('pending_approval_email') ?? prefs.getString('pending_approval_account');
+      
+      if (pendingEmail != null && pendingEmail.isNotEmpty) {
+        final res = await ApiService.get('/users/status/$pendingEmail');
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (data['isApproved'] == true || data['status'] == 'approved' || data['status'] == 'active') {
+            await prefs.remove('pending_approval_email');
+            await prefs.remove('pending_approval_account');
+            await prefs.remove('pending_approval_name');
+
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('تهانينا! تمت الموافقة على حسابك وتفعيله بنجاح 🎉'),
+                backgroundColor: AppColors.primaryGreen,
+              ),
+            );
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+            );
+            return;
+          }
+        }
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('الحساب لا يزال قيد المراجعة والتدقيق، يرجى الانتظار.'),
+          backgroundColor: Colors.orangeAccent,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تعذر الاتصال بالسيرفر للتحقق من الحالة.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isChecking = false);
+    }
   }
 
   Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('pending_approval_email');
+    await prefs.remove('pending_approval_account');
+    await prefs.remove('pending_approval_name');
     await SessionManager().logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const SplashScreen()),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }

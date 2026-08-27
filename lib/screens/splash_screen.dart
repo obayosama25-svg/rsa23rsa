@@ -2,10 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../widgets/app_logo.dart';
 import '../theme/app_colors.dart';
-import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sudacards/models/user_account.dart' as import_user_account;
+import 'login_screen.dart';
+import 'pending_approval_screen.dart';
 import 'package:sudacards/screens/register/otp_verification_screen.dart';
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -18,31 +19,40 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     // 1. شاشة البداية (Splash Screen)
-    // تقوم بعرض شعار التطبيق لمدة 3 ثواني ثم تقوم بتوجيه المستخدم إلى:
-    // Splash Screen -> Login Screen
     Timer(const Duration(seconds: 3), () async {
       final prefs = await SharedPreferences.getInstance();
       final unverifiedEmail = prefs.getString('unverified_email');
       
       if (unverifiedEmail != null) {
-        final accountJson = prefs.getString('unverified_account');
-        if (accountJson != null) {
-          import_user_account.UserAccount account;
-          try {
-            account = import_user_account.UserAccount.fromJson(accountJson);
-            if (!mounted) return;
-            Navigator.of(context).pushReplacement(
-              PageRouteBuilder(
-                transitionDuration: const Duration(milliseconds: 800),
-                pageBuilder: (_, _, _) => OTPVerificationScreen(email: unverifiedEmail, account: account),
-                transitionsBuilder: (_, animation, _, child) => FadeTransition(opacity: animation, child: child),
-              ),
-            );
-            return;
-          } catch (e) {
-            // Ignored, fallback to login
-          }
-        }
+        final unverifiedAccountNumber = prefs.getString('unverified_account_number') ?? '';
+        final unverifiedFullName = prefs.getString('unverified_full_name') ?? '';
+        
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 800),
+            pageBuilder: (_, _, _) => OTPVerificationScreen(
+              email: unverifiedEmail, 
+              accountNumber: unverifiedAccountNumber, 
+              fullName: unverifiedFullName
+            ),
+            transitionsBuilder: (_, animation, _, child) => FadeTransition(opacity: animation, child: child),
+          ),
+        );
+        return;
+      }
+
+      final pendingEmail = prefs.getString('pending_approval_email');
+      if (pendingEmail != null) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 800),
+            pageBuilder: (_, _, _) => const PendingApprovalScreen(),
+            transitionsBuilder: (_, animation, _, child) => FadeTransition(opacity: animation, child: child),
+          ),
+        );
+        return;
       }
 
       if (!mounted) return;

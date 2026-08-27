@@ -9,6 +9,8 @@ import 'home_screen.dart';
 import 'login/widgets/login_form.dart';
 import 'recovery_flow_screen.dart';
 import 'device_transfer_flow_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'pending_approval_screen.dart';
 import '../services/session_manager.dart';
 import '../services/biometric_service.dart';
 
@@ -129,6 +131,14 @@ class _LoginScreenState extends State<LoginScreen>
           MaterialPageRoute(
             builder: (context) => DeviceTransferFlowScreen(accountNumber: _accountNumberController.text.trim()),
           ),
+        );
+      } else if (result.status == 'pending' || result.status == 'pending_approval' || result.status == 'unverified') {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('pending_approval_email', _accountNumberController.text.trim());
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const PendingApprovalScreen()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(

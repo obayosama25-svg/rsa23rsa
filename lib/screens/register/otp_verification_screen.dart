@@ -5,13 +5,18 @@ import '../../../theme/app_colors.dart';
 import '../../../widgets/cyber_background.dart';
 import '../../../services/session_manager.dart';
 import 'widgets/register_success_dialog.dart';
-import '../../../models/user_account.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 class OTPVerificationScreen extends StatefulWidget {
   final String email;
-  final UserAccount account;
+  final String accountNumber;
+  final String fullName;
   
-  const OTPVerificationScreen({super.key, required this.email, required this.account});
+  const OTPVerificationScreen({
+    super.key, 
+    required this.email, 
+    required this.accountNumber, 
+    required this.fullName,
+  });
 
   @override
   State<OTPVerificationScreen> createState() => _OTPVerificationScreenState();
@@ -42,13 +47,19 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       if (result.isSuccess) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('unverified_email');
-        await prefs.remove('unverified_account');
+        await prefs.remove('unverified_account_number');
+        await prefs.remove('unverified_full_name');
+        
+        // 🔒 حفظ بيانات الحساب قيد المراجعة لتثبيت شاشة الانتظار حتى القبول
+        await prefs.setString('pending_approval_email', widget.email);
+        await prefs.setString('pending_approval_account', widget.accountNumber);
+        await prefs.setString('pending_approval_name', widget.fullName);
         
         if (!mounted) return;
         RegisterSuccessDialog.show(
           context: context,
-          fullName: widget.account.fullName,
-          cardNumber: widget.account.accountNumber,
+          fullName: widget.fullName,
+          cardNumber: widget.accountNumber,
         );
       } else {
         if (!mounted) return;
