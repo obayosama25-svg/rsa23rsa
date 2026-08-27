@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'api_service.dart';
+import 'registration_service.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// BiometricService — إدارة المصادقة ببصمة الإصبع و Face ID
@@ -52,12 +54,23 @@ class BiometricService {
     }
   }
 
-  /// حفظ حالة تفعيل أو تعطيل البصمة
+  /// حفظ حالة تفعيل أو تعطيل البصمة محلياً وعلى السيرفر
   Future<void> setBiometricEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyBiometricEnabled, enabled);
     if (!enabled) {
       await clearBiometricCredentials();
+    }
+
+    try {
+      final deviceId = await RegistrationService.getDeviceId();
+      await ApiService.put('/users/security/biometric', {
+        'enabled': enabled,
+        'deviceId': deviceId,
+      });
+      debugPrint('[Biometric] تمت مزامنة حالة البصمة مع السيرفر: $enabled ✅');
+    } catch (e) {
+      debugPrint('[Biometric] خطأ في مزامنة حالة البصمة مع السيرفر: $e');
     }
   }
 
@@ -69,11 +82,8 @@ class BiometricService {
 
       return await _auth.authenticate(
         localizedReason: localizedReason,
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-          useErrorDialogs: true,
-        ),
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
       );
     } catch (e) {
       debugPrint('[Biometric] فشل التحقق البيومتري: $e');

@@ -184,7 +184,7 @@ class SessionManager {
           );
           await _saveSession(_currentUser!, savedToken);
           debugPrint('[BiometricLogin] تم الدخول بالبصمة بنجاح ✅');
-          return AuthResult.success(_currentUser!, token: savedToken);
+          return AuthResult.success(_currentUser!, savedToken);
         }
       }
 

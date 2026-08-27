@@ -560,4 +560,30 @@ router.post('/recovery/reset', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════
+// PUT /api/users/security/biometric — تحديث حالة الدخول بالبصمة
+// ═══════════════════════════════════════════════════════════
+router.put('/security/biometric', auth, async (req, res) => {
+  try {
+    const { enabled, deviceId } = req.body;
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    }
+
+    user.biometricEnabled = Boolean(enabled);
+    user.biometricDeviceId = enabled ? (deviceId || user.deviceId) : null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: enabled ? 'تم تفعيل الدخول بالبصمة على السيرفر' : 'تم تعطيل الدخول بالبصمة على السيرفر',
+      biometricEnabled: user.biometricEnabled,
+    });
+  } catch (err) {
+    console.error('[BIOMETRIC] Error:', err);
+    res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+  }
+});
+
 module.exports = router;

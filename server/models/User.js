@@ -47,6 +47,8 @@ const userSchema = new mongoose.Schema(
     balance: { type: Number, default: 0.0 },
     deviceId: { type: String, default: '' },
     isActive: { type: Boolean, default: true },
+    biometricEnabled: { type: Boolean, default: false },
+    biometricDeviceId: { type: String, default: null },
 
     // حالة التفعيل
     status: {

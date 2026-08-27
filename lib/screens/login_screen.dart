@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/cyber_background.dart';
@@ -10,7 +9,6 @@ import 'home_screen.dart';
 import 'login/widgets/login_form.dart';
 import 'recovery_flow_screen.dart';
 import 'device_transfer_flow_screen.dart';
-import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import '../services/biometric_service.dart';
 
