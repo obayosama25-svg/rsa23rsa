@@ -100,6 +100,7 @@ class AuthService {
       request.fields['firstName'] = firstName.trim();
       request.fields['middleName'] = middleName.trim();
       request.fields['lastName'] = lastName.trim();
+      request.fields['fullName'] = '${firstName.trim()} ${middleName.trim()} ${lastName.trim()}';
       request.fields['dateOfBirth'] = dateOfBirth.toIso8601String();
 
       if (idImagePath != null && !kIsWeb) {
@@ -112,7 +113,7 @@ class AuthService {
         request.files.add(await http.MultipartFile.fromPath('signaturePhoto', signaturePhotoPath));
       }
 
-      var streamedResponse = await request.send().timeout(const Duration(seconds: 15));
+      var streamedResponse = await request.send().timeout(const Duration(seconds: 30));
       var response = await http.Response.fromStream(streamedResponse);
       final Map<String, dynamic> data = jsonDecode(response.body);
 
@@ -166,7 +167,7 @@ class AuthService {
           'password': loginPassword,
           'deviceId': deviceId,
         }),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 30));
 
       final Map<String, dynamic> data = jsonDecode(response.body);
 
@@ -175,13 +176,16 @@ class AuthService {
         final token = data['token'];
         
         // رسم وتجهيز كائن الحساب لحفظه محلياً كـ Cache
+        final accountNum = serverUser['accountNumber']?.toString() ?? '';
+        final uId = serverUser['userId'] ?? (accountNum.isNotEmpty ? '2490$accountNum' : (serverUser['id'] ?? ''));
         final account = UserAccount(
-          id: serverUser['id'],
-          accountNumber: serverUser['accountNumber'],
+          id: uId,
+          accountNumber: accountNum,
           email: serverUser['email'].toString().toLowerCase().trim(),
           loginPasswordHash: hashValue(loginPassword),
           passwordHash: hashValue('bank1234'), // افتراضي متطابق مع السيرفر
           pinHash: hashValue('1234'), // افتراضي
+          hasSetPin: true,
           firstName: serverUser['firstName'] ?? '',
           middleName: ' ',
           lastName: serverUser['lastName'] ?? '',
@@ -205,7 +209,7 @@ class AuthService {
       }
     } catch (e) {
       debugPrint('[Auth] خطأ في الدخول عبر السيرفر: $e');
-      return AuthResult.failure('حدث خطأ في الاتصال بالخادم. يرجى التأكد من تشغيل السيرفر ووجود إنترنت.');
+      return AuthResult.failure('خطأ اتصال: ${e.runtimeType}: $e');
     }
   }
 

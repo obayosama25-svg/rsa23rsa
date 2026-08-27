@@ -159,45 +159,7 @@ class _ProfileTabState extends State<ProfileTab> {
                         sub: 'إعداد وإدارة الدفع السريع',
                         accent: const Color(0xFF8B5CF6),
                         onTap: () {
-                          if (widget.account?.hasSetPin == true) {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const NfcPaymentScreen()));
-                          } else {
-                            showDialog(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                backgroundColor: isDark ? const Color(0xFF0D1826) : Colors.white,
-                                title: Row(
-                                  children: [
-                                    const Icon(Icons.security_rounded, color: Color(0xFFF59E0B)),
-                                    const SizedBox(width: 10),
-                                    Text('عذراً', style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.bold, fontSize: 18)),
-                                  ],
-                                ),
-                                content: Text(
-                                  'لا يمكنك استخدام الدفع التلامسي (NFC) أو البطاقة قبل إنشاء رقم PIN خاص بك من إعدادات الأمان.',
-                                  style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, height: 1.5),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx),
-                                    child: const Text('حسناً', style: TextStyle(color: Color(0xFF0052FF), fontWeight: FontWeight.bold)),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      Navigator.pop(ctx);
-                                      Navigator.push(context, MaterialPageRoute(builder: (_) => const SecurityScreen()));
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF0052FF),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    ),
-                                    child: const Text('الذهاب للأمان', style: TextStyle(color: Colors.white)),
-                                  )
-                                ],
-                              ),
-                            );
-                          }
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const NfcPaymentScreen()));
                         },
                       ),
                       _TileData(

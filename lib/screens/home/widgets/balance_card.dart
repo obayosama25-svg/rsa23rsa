@@ -59,14 +59,15 @@ class BalanceCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    account?.id ?? 'غير متوفر',
+                    account?.formattedCardNumber ?? '2490  0000  0000',
                     style: const TextStyle(
                       color: Colors.white70,
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontSize: 15,
                       fontFamily: 'Courier',
                       letterSpacing: 2.0,
                     ),
+                    textDirection: TextDirection.ltr,
                   ),
                   GestureDetector(
                     onTap: onShowQrScanner,

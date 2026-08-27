@@ -73,14 +73,17 @@ class SessionManager {
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           if (data['success'] == true) {
-            final serverUser = data['user'];
+            final serverUser = data['user'] ?? data['data'] ?? {};
+            final accountNum = serverUser['accountNumber']?.toString() ?? '';
+            final uId = serverUser['userId'] ?? (accountNum.isNotEmpty ? '2490$accountNum' : (serverUser['_id'] ?? savedUserId));
             _currentUser = UserAccount(
-              id: serverUser['_id'] ?? serverUser['userId'] ?? savedUserId,
-              accountNumber: serverUser['accountNumber'] ?? '',
+              id: uId,
+              accountNumber: accountNum,
               email: serverUser['email'] ?? '',
               loginPasswordHash: '', // بيانات وهمية لأسباب أمنية
               passwordHash: '',
               pinHash: '',
+              hasSetPin: true,
               firstName: serverUser['firstName'] ?? '',
               middleName: serverUser['middleName'] ?? '',
               lastName: serverUser['lastName'] ?? '',
@@ -166,13 +169,16 @@ class SessionManager {
         if (data['success'] == true) {
           final serverUser = data['user'];
           final currentDeviceId = await RegistrationService.getDeviceId();
+          final accountNum = serverUser['accountNumber']?.toString() ?? creds['accountNumber'] ?? '';
+          final uId = serverUser['userId'] ?? (accountNum.isNotEmpty ? '2490$accountNum' : (serverUser['_id'] ?? ''));
           _currentUser = UserAccount(
-            id: serverUser['_id'] ?? serverUser['userId'] ?? '',
-            accountNumber: serverUser['accountNumber'] ?? creds['accountNumber'] ?? '',
+            id: uId,
+            accountNumber: accountNum,
             email: serverUser['email'] ?? creds['email'] ?? '',
             loginPasswordHash: '',
             passwordHash: '',
             pinHash: '',
+            hasSetPin: true,
             firstName: serverUser['firstName'] ?? '',
             middleName: serverUser['middleName'] ?? '',
             lastName: serverUser['lastName'] ?? '',

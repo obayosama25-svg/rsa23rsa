@@ -13,6 +13,24 @@ class UserAccount {
   /// رقم البطاقة البنكية = نفس قيمة id (للتوافق)
   String get cardNumber => id;
 
+  /// رقم البطاقة البنكية المنسق كأرقام بنكية أنيقة (مثال: 2490 1234 5678)
+  String get formattedCardNumber {
+    // فحص إذا كان المعرف عبارة عن Mongo ObjectId سداسي عشري من 24 حرف
+    final isMongoHex = id.length == 24 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(id);
+    final String cleanNum = (!isMongoHex && id.isNotEmpty && RegExp(r'^[0-9]+$').hasMatch(id))
+        ? id
+        : (accountNumber.isNotEmpty ? '2490$accountNumber' : '249000000000');
+
+    if (cleanNum.length == 12) {
+      return '${cleanNum.substring(0, 4)}  ${cleanNum.substring(4, 8)}  ${cleanNum.substring(8, 12)}';
+    } else if (cleanNum.length == 16) {
+      return '${cleanNum.substring(0, 4)}  ${cleanNum.substring(4, 8)}  ${cleanNum.substring(8, 12)}  ${cleanNum.substring(12, 16)}';
+    } else if (cleanNum.length == 8) {
+      return '2490  ${cleanNum.substring(0, 4)}  ${cleanNum.substring(4, 8)}';
+    }
+    return cleanNum;
+  }
+
   // ─── بيانات الدخول ───────────────────────────────────────────
   /// البريد الإلكتروني للدخول
   final String email;
@@ -26,7 +44,7 @@ class UserAccount {
   /// رقم PIN المكون من 4 أرقام مشفر
   final String pinHash;
 
-  /// هل قام المستخدم بإعداد رقم PIN خاص به أم لا زال يستخدم الافتراضي؟
+  /// هل قام المستخدم بإعداد رقم PIN خاص به
   final bool hasSetPin;
 
   // ─── البيانات الشخصية ─────────────────────────────────────────
@@ -74,7 +92,7 @@ class UserAccount {
     required this.loginPasswordHash,
     required this.passwordHash,
     required this.pinHash,
-    this.hasSetPin = false,
+    this.hasSetPin = true,
     required this.firstName,
     required this.middleName,
     required this.lastName,
