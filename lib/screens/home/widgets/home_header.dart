@@ -25,7 +25,7 @@ class HomeHeader extends StatelessWidget {
           // اسم العميل
           Expanded(
             child: Text(
-              'مرحباً $name!',
+              'مرحباً $name',
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: isDark ? Colors.white : Colors.black,
