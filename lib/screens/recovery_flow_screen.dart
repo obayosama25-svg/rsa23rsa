@@ -103,6 +103,12 @@ class _RecoveryFlowScreenState extends State<RecoveryFlowScreen> {
   }
 
   Future<void> _verifyPinAndEmail() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() => _errorMessage = 'يرجى إدخال البريد الإلكتروني الخاص بحسابك');
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final res = await http.post(
@@ -110,7 +116,7 @@ class _RecoveryFlowScreenState extends State<RecoveryFlowScreen> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'accountNumber': widget.accountNumber,
-          'email': _emailController.text.trim(),
+          'email': email,
           'pin': _normalizeDigits(_pinController.text)
         }),
       );
@@ -261,7 +267,7 @@ class _RecoveryFlowScreenState extends State<RecoveryFlowScreen> {
             const Text('التحقق الثانوي:', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             _buildTextField(_emailController, 'البريد الإلكتروني', type: TextInputType.emailAddress),
-            _buildTextField(_pinController, 'رقم الـ PIN (4 أرقام)', isObscure: true, type: TextInputType.number),
+            _buildTextField(_pinController, 'رقم الـ PIN (اختياري إن وجد)', isObscure: true, type: TextInputType.number),
             SizedBox(
               height: 50,
               width: double.infinity,
