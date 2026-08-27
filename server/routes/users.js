@@ -351,7 +351,20 @@ router.post('/login', async (req, res) => {
 // ═══════════════════════════════════════════════════════════
 router.get('/me', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId);
+    const mongoose = require('mongoose');
+    let user = null;
+    if (mongoose.Types.ObjectId.isValid(req.userId)) {
+      user = await User.findById(req.userId);
+    }
+    if (!user) {
+      user = await User.findOne({
+        $or: [
+          { accountNumber: req.userId },
+          { email: req.userId },
+          { userId: req.userId }
+        ]
+      });
+    }
     if (!user) {
       return res.status(404).json({
         success: false,

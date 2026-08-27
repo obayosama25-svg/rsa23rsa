@@ -17,8 +17,9 @@ function authMiddleware(req, res, next) {
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
+    const secret = process.env.JWT_SECRET || 'sudacards_secret_key_2024';
+    const decoded = jwt.verify(token, secret);
+    req.userId = (decoded.userId || decoded.id || decoded._id || '').toString();
     next();
   } catch (err) {
     return res.status(401).json({

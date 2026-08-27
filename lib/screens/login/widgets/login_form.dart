@@ -164,21 +164,41 @@ class LoginForm extends StatelessWidget {
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(
-                    Icons.fingerprint_rounded,
-                    color: AppColors.primaryGreen,
-                    size: 26,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'تسجيل الدخول بالبصمة',
-                    style: TextStyle(
-                      color: AppColors.primaryGreen,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                children: [
+                  if (isAuthenticating) ...[
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primaryGreen,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'جاري التحقق من السيرفر...',
+                      style: TextStyle(
+                        color: AppColors.primaryGreen,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ] else ...[
+                    const Icon(
+                      Icons.fingerprint_rounded,
+                      color: AppColors.primaryGreen,
+                      size: 26,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'تسجيل الدخول بالبصمة',
+                      style: TextStyle(
+                        color: AppColors.primaryGreen,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
