@@ -127,7 +127,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     : ThemeMode.dark;
                 setState(() {});
               },
-              onNotificationsTap: () {},
             ),
             const SizedBox(height: 32),
             BalanceCard(

@@ -29,22 +29,15 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
   Future<void> _fetchInvoice() async {
     try {
       final res = await ApiService.get('/invoices/${widget.invoiceId}');
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        if (data['success'] == true && data['invoice'] != null) {
-          setState(() {
-            _invoice = Invoice.fromMap(data['invoice']);
-            _isLoading = false;
-          });
-        } else {
-          setState(() {
-            _errorMessage = data['message'] ?? 'فشل العثور على الفاتورة';
-            _isLoading = false;
-          });
-        }
+      final data = jsonDecode(res.body);
+      if (res.statusCode == 200 && data['success'] == true && data['invoice'] != null) {
+        setState(() {
+          _invoice = Invoice.fromMap(data['invoice']);
+          _isLoading = false;
+        });
       } else {
         setState(() {
-          _errorMessage = 'خطأ في الاتصال بالسيرفر';
+          _errorMessage = data['message'] ?? 'فشل العثور على الفاتورة أو انتهت صلاحيتها';
           _isLoading = false;
         });
       }

@@ -8,6 +8,7 @@ const fs = require('fs');
 
 const userRoutes = require('./routes/users');
 const transactionRoutes = require('./routes/transactions');
+const invoiceRoutes = require('./routes/invoices');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +28,7 @@ app.use('/uploads', express.static(uploadsDir));
 // ─── API Routes ─────────────────────────────────────────────
 app.use('/api/users', userRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // ─── Health check ───────────────────────────────────────────
 app.get('/api/health', (_req, res) => {

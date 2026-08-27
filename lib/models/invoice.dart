@@ -53,12 +53,29 @@ class Invoice {
     return 'sudacard://invoice?id=$invoiceId';
   }
 
-  static String? extractIdFromDeepLink(String uri) {
+  static String? extractIdFromDeepLink(String input) {
+    final text = input.trim();
+    if (text.isEmpty) return null;
+    if (text.startsWith('INV-')) return text;
     try {
-      final parsed = Uri.parse(uri);
-      return parsed.queryParameters['id'];
+      final invMatch = RegExp(r'INV-\d+').firstMatch(text);
+      if (invMatch != null) {
+        return invMatch.group(0);
+      }
+      if (text.contains('id=')) {
+        final parsed = Uri.parse(text);
+        if (parsed.queryParameters['id'] != null) {
+          return parsed.queryParameters['id'];
+        }
+      }
+      final parsed = Uri.parse(text);
+      if (parsed.pathSegments.isNotEmpty) {
+        final last = parsed.pathSegments.last;
+        if (last.startsWith('INV-')) return last;
+      }
     } catch (e) {
       return null;
     }
+    return null;
   }
 }

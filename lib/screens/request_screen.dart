@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -11,6 +12,7 @@ import '../theme/app_colors.dart';
 import '../widgets/cyber_background.dart';
 import '../services/api_service.dart';
 import '../services/session_manager.dart';
+import 'payment_confirm_screen.dart';
 
 /// شاشة إنشاء فاتورة وطلب الأموال
 class RequestScreen extends StatefulWidget {
@@ -23,6 +25,7 @@ class RequestScreen extends StatefulWidget {
 class _RequestScreenState extends State<RequestScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
+  final TextEditingController _payLinkController = TextEditingController();
   final GlobalKey _qrKey = GlobalKey();
   final _formKey = GlobalKey<FormState>();
 
@@ -30,6 +33,7 @@ class _RequestScreenState extends State<RequestScreen> {
   Invoice? _generatedInvoice;
   bool _isGenerating = false;
   bool _showQr = false;
+  int _selectedTab = 0; // 0: إنشاء مطالبة, 1: سداد مطالبة
 
   @override
   void initState() {
@@ -41,7 +45,36 @@ class _RequestScreenState extends State<RequestScreen> {
   void dispose() {
     _amountController.dispose();
     _descController.dispose();
+    _payLinkController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (data != null && data.text != null && data.text!.isNotEmpty) {
+      setState(() {
+        _payLinkController.text = data.text!.trim();
+      });
+    }
+  }
+
+  void _processPayLink() {
+    final raw = _payLinkController.text.trim();
+    if (raw.isEmpty) {
+      _showError('يرجى إدخال أو لصق رابط المطالبة');
+      return;
+    }
+    final invoiceId = Invoice.extractIdFromDeepLink(raw);
+    if (invoiceId == null || invoiceId.isEmpty) {
+      _showError('الرابط غير صالح، يجب أن يحتوي على كود مطالبة INV-');
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentConfirmScreen(invoiceId: invoiceId),
+      ),
+    );
   }
 
   Future<void> _loadAccount() async {
@@ -199,6 +232,7 @@ class _RequestScreenState extends State<RequestScreen> {
               child: Column(
                 children: [
                   _buildHeader(isDark),
+                  if (!_showQr) _buildTabSelector(isDark),
                   Expanded(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 450),
@@ -214,7 +248,9 @@ class _RequestScreenState extends State<RequestScreen> {
                       ),
                       child: _showQr
                           ? _buildQrView(isDark)
-                          : _buildFormView(isDark),
+                          : (_selectedTab == 0
+                              ? _buildFormView(isDark)
+                              : _buildPayClaimView(isDark)),
                     ),
                   ),
                 ],
@@ -226,52 +262,223 @@ class _RequestScreenState extends State<RequestScreen> {
     );
   }
 
-  Widget _buildHeader(bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+  Widget _buildTabSelector(bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.8) : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: IconButton(
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: isDark ? Colors.white : Colors.black87,
-                size: 20,
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Text(
-            _showQr ? 'مشاركة الفاتورة' : 'طلب أموال',
-            style: TextStyle(
-              color: isDark ? Colors.white : Colors.black87,
-              fontWeight: FontWeight.bold,
-              fontSize: 22,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const Spacer(),
-          if (_showQr)
-            Container(
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.primaryGreen.withValues(alpha: 0.1) : AppColors.primaryBlue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TextButton.icon(
-                onPressed: _reset,
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: const Text('جديد', style: TextStyle(fontWeight: FontWeight.bold)),
-                style: TextButton.styleFrom(
-                  foregroundColor: isDark ? AppColors.primaryGreen : AppColors.primaryBlue,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedTab = 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: _selectedTab == 0
+                      ? (isDark ? AppColors.primaryGreen : Colors.white)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: _selectedTab == 0
+                      ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)]
+                      : [],
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'إنشاء مطالبة',
+                  style: TextStyle(
+                    color: _selectedTab == 0
+                        ? (isDark ? Colors.black : AppColors.primaryBlue)
+                        : (isDark ? Colors.white60 : Colors.black54),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedTab = 1),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: _selectedTab == 1
+                      ? (isDark ? AppColors.primaryGreen : Colors.white)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: _selectedTab == 1
+                      ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)]
+                      : [],
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'سداد مطالبة بالرابط',
+                  style: TextStyle(
+                    color: _selectedTab == 1
+                        ? (isDark ? Colors.black : AppColors.primaryBlue)
+                        : (isDark ? Colors.white60 : Colors.black54),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── نموذج سداد مطالبة عبر الرابط ────────────────────────────────
+  Widget _buildPayClaimView(bool isDark) {
+    return SingleChildScrollView(
+      key: const ValueKey('pay_claim'),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // إرشادات السداد
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? const Color(0xFF3B82F6).withValues(alpha: 0.3) : const Color(0xFF3B82F6).withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.link_rounded, color: Color(0xFF3B82F6), size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'قم بلصق رابط المطالبة أو كود الفاتورة المسلّم إليك لدفعها فوراً. (صلاحية الروابط 5 ساعات فقط من تاريخ إنشائها)',
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : const Color(0xFF1E3A8A),
+                      fontSize: 13,
+                      height: 1.6,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          Padding(
+            padding: const EdgeInsets.only(right: 8, bottom: 8),
+            child: Text(
+              'رابط أو كود المطالبة',
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.black87,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _payLinkController,
+              textDirection: TextDirection.ltr,
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+              decoration: InputDecoration(
+                hintText: 'https://sudacards.app/pay/INV-... أو INV-12345',
+                hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black26, fontSize: 13),
+                hintTextDirection: TextDirection.ltr,
+                prefixIcon: const Icon(Icons.receipt_long_rounded, color: AppColors.primaryGreen),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.paste_rounded, color: AppColors.primaryGreen),
+                  tooltip: 'لصق من الحافظة',
+                  onPressed: _pasteFromClipboard,
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // زر لصق سريع
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _pasteFromClipboard,
+              icon: const Icon(Icons.content_paste_go_rounded, size: 18),
+              label: const Text('لصق من الحافظة'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryGreen,
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // زر السداد
+          Container(
+            width: double.infinity,
+            height: 56,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF00C853), Color(0xFF009624)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF00C853).withValues(alpha: 0.35),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: ElevatedButton(
+              onPressed: _processPayLink,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.payment_rounded, color: Colors.black, size: 22),
+                  SizedBox(width: 10),
+                  Text(
+                    'متابعة وسداد المطالبة',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -321,14 +528,14 @@ class _RequestScreenState extends State<RequestScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            Icons.info_outline_rounded,
+            Icons.access_time_filled_rounded,
             color: isDark ? AppColors.primaryGreen : AppColors.primaryBlue,
             size: 22,
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'أدخل المبلغ المطلوب ووصف الغرض، ثم قم بتوليد رابط آمن أو رمز QR لمشاركته مع المدين.',
+              'أدخل المبلغ المطلوب ووصف الغرض لإنشاء رابط دفع أو رمز QR. تنتهي صلاحية الرابط تلقائياً بعد 5 ساعات.',
               style: TextStyle(
                 color: isDark ? Colors.white70 : Colors.black87,
                 fontSize: 13,
