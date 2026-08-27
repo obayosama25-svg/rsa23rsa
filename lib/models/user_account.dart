@@ -22,11 +22,11 @@ class UserAccount {
         : (accountNumber.isNotEmpty ? '2490$accountNumber' : '249000000000');
 
     if (cleanNum.length == 12) {
-      return '${cleanNum.substring(0, 4)}  ${cleanNum.substring(4, 8)}  ${cleanNum.substring(8, 12)}';
+      return '${cleanNum.substring(0, 4)} ${cleanNum.substring(4, 8)} ${cleanNum.substring(8, 12)}';
     } else if (cleanNum.length == 16) {
-      return '${cleanNum.substring(0, 4)}  ${cleanNum.substring(4, 8)}  ${cleanNum.substring(8, 12)}  ${cleanNum.substring(12, 16)}';
+      return '${cleanNum.substring(0, 4)} ${cleanNum.substring(4, 8)} ${cleanNum.substring(8, 12)} ${cleanNum.substring(12, 16)}';
     } else if (cleanNum.length == 8) {
-      return '2490  ${cleanNum.substring(0, 4)}  ${cleanNum.substring(4, 8)}';
+      return '2490 ${cleanNum.substring(0, 4)} ${cleanNum.substring(4, 8)}';
     }
     return cleanNum;
   }

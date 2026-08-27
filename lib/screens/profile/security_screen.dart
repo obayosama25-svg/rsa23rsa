@@ -42,11 +42,13 @@ class _SecurityScreenState extends State<SecurityScreen> {
     }
 
     final isBioEnabled = await BiometricService().isBiometricEnabled();
+    final hideBal = prefs.getBool('auto_hide_balance') ?? false;
 
     if (mounted) {
       setState(() {
         _hasQuestions = true;
         _biometricEnabled = isBioEnabled;
+        _hideBalance = hideBal;
         _isLoading = false;
       });
     }
@@ -84,12 +86,16 @@ class _SecurityScreenState extends State<SecurityScreen> {
       }
 
       final currentUser = SessionManager().currentUser;
-      final token = SessionManager().token;
-      if (currentUser != null && token != null && token.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      final token = SessionManager().token ?? prefs.getString('session_token') ?? '';
+      final accountNum = currentUser?.accountNumber ?? prefs.getString('biometric_saved_account') ?? '';
+      final userEmail = currentUser?.email ?? prefs.getString('biometric_saved_email') ?? '';
+
+      if (token.isNotEmpty && accountNum.isNotEmpty) {
         await bioService.saveBiometricCredentials(
-          accountNumber: currentUser.accountNumber,
+          accountNumber: accountNum,
           token: token,
-          email: currentUser.email,
+          email: userEmail,
         );
       } else {
         await bioService.setBiometricEnabled(true);
@@ -252,7 +258,11 @@ class _SecurityScreenState extends State<SecurityScreen> {
                           accent: const Color(0xFF64748B),
                           isDark: isDark,
                           value: _hideBalance,
-                          onChanged: (v) => setState(() => _hideBalance = v),
+                          onChanged: (v) async {
+                            final p = await SharedPreferences.getInstance();
+                            await p.setBool('auto_hide_balance', v);
+                            setState(() => _hideBalance = v);
+                          },
                         ),
                       ])),
                     const SizedBox(height: 24),

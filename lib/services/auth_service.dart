@@ -183,11 +183,11 @@ class AuthService {
           accountNumber: accountNum,
           email: serverUser['email'].toString().toLowerCase().trim(),
           loginPasswordHash: hashValue(loginPassword),
-          passwordHash: hashValue('bank1234'), // افتراضي متطابق مع السيرفر
-          pinHash: hashValue('1234'), // افتراضي
-          hasSetPin: true,
+          passwordHash: serverUser['passwordHash'] ?? '',
+          pinHash: serverUser['pinHash'] ?? '',
+          hasSetPin: serverUser['hasSetPin'] ?? (serverUser['pinHash'] != null && serverUser['pinHash'].toString().isNotEmpty),
           firstName: serverUser['firstName'] ?? '',
-          middleName: ' ',
+          middleName: serverUser['middleName'] ?? '',
           lastName: serverUser['lastName'] ?? '',
           dateOfBirth: DateTime.now(), // افتراضي للتخزين المحلي
           idImagePath: '',

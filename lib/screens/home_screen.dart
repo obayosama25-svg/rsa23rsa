@@ -44,15 +44,20 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
     
-    // 2. عرض البيانات المتوفرة فوراً
+    // 2. قراءة إعداد إخفاء الرصيد التلقائي
+    final prefs = await SharedPreferences.getInstance();
+    final hideBal = prefs.getBool('auto_hide_balance') ?? false;
+
+    // 3. عرض البيانات المتوفرة فوراً
     if (mounted) {
       setState(() {
         _account = SessionManager().currentUser;
+        _isBalanceHidden = hideBal;
       });
     }
 
-    // 3. جلب الرصيد الحي من السيرفر وتحديث الواجهة
-    final success = await TransactionService.fetchAndUpdateBalance();
+    // 4. جلب الرصيد الحي من السيرفر وتحديث الواجهة
+    await TransactionService.fetchAndUpdateBalance();
     if (mounted) {
       setState(() {
         _account = SessionManager().currentUser;
