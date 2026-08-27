@@ -20,6 +20,7 @@ class _RecoveryFlowScreenState extends State<RecoveryFlowScreen> {
   // Step 1
   List<Map<String, dynamic>> _questions = [];
   final List<TextEditingController> _answerControllers = [];
+  bool _hasSetPin = false;
 
   // Step 2
   final _emailController = TextEditingController();
@@ -46,6 +47,7 @@ class _RecoveryFlowScreenState extends State<RecoveryFlowScreen> {
         final qs = List<Map<String, dynamic>>.from(data['questions']);
         setState(() {
           _questions = qs;
+          _hasSetPin = data['hasSetPin'] == true;
           for (var i = 0; i < qs.length; i++) {
             _answerControllers.add(TextEditingController());
           }
@@ -264,10 +266,21 @@ class _RecoveryFlowScreenState extends State<RecoveryFlowScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('التحقق الثانوي:', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              _hasSetPin ? 'التحقق الثانوي:' : 'تأكيد البريد الإلكتروني:',
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _hasSetPin 
+                ? 'يرجى إدخال البريد الإلكتروني ورقم PIN المرتبط بالحساب' 
+                : 'يرجى إدخال بريدك الإلكتروني لاستلام رمز التحقق (OTP)',
+              style: const TextStyle(color: Colors.white60, fontSize: 13),
+            ),
             const SizedBox(height: 20),
             _buildTextField(_emailController, 'البريد الإلكتروني', type: TextInputType.emailAddress),
-            _buildTextField(_pinController, 'رقم الـ PIN (اختياري إن وجد)', isObscure: true, type: TextInputType.number),
+            if (_hasSetPin)
+              _buildTextField(_pinController, 'رقم الـ PIN (4 أرقام)', isObscure: true, type: TextInputType.number),
             SizedBox(
               height: 50,
               width: double.infinity,

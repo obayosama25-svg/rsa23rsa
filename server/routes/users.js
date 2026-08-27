@@ -467,6 +467,27 @@ router.get('/search/:accountNumber', auth, async (req, res) => {
 // ═══════════════════════════════════════════════════════════
 // POST /api/users/recovery/questions — جلب أسئلة الأمان
 // ═══════════════════════════════════════════════════════════
+router.get('/recover/questions/:accountNumber', async (req, res) => {
+  try {
+    const user = await User.findOne({ accountNumber: req.params.accountNumber });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'الحساب غير موجود' });
+    }
+    if (!user.securityQuestions || user.securityQuestions.length === 0) {
+      return res.status(400).json({ success: false, message: 'لم يتم إعداد أسئلة أمان لهذا الحساب' });
+    }
+    const questions = user.securityQuestions.map((q, i) => ({
+      index: i,
+      question: q.question,
+    }));
+    const hasSetPin = !!(user.hasSetPin && user.pinHash && user.pinHash.trim().length > 0);
+    res.json({ success: true, questions, hasSetPin });
+  } catch (err) {
+    console.error('[RECOVERY-GET-Q] Error:', err);
+    res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+  }
+});
+
 router.post('/recovery/questions', async (req, res) => {
   try {
     const { accountNumber } = req.body;
@@ -492,7 +513,8 @@ router.post('/recovery/questions', async (req, res) => {
       question: q.question,
     }));
 
-    res.json({ success: true, questions });
+    const hasSetPin = !!(user.hasSetPin && user.pinHash && user.pinHash.trim().length > 0);
+    res.json({ success: true, questions, hasSetPin });
   } catch (err) {
     console.error('[RECOVERY-Q] Error:', err);
     res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
