@@ -158,6 +158,11 @@ router.post(
         otpCode,
         otpExpiry,
         status: 'pending_otp',
+        hasSetPin: false,
+        isLocked: false,
+        failedLoginAttempts: 0,
+        pinHash: '',
+        pin: '',
       });
 
       await user.save();
@@ -279,12 +284,26 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // البحث عن المستخدم (نحتاج كلمة المرور هنا)
-    const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
+    // البحث عن المستخدم (بالبريد أو رقم الحساب)
+    const user = await User.findOne({
+      $or: [
+        { email: email.toLowerCase().trim() },
+        { accountNumber: email.trim() },
+      ]
+    }).select('+password');
     if (!user) {
       return res.status(401).json({
         success: false,
         message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+      });
+    }
+
+    // التحقق من قفل الحساب
+    if (user.isLocked || user.status === 'suspended') {
+      return res.status(403).json({
+        success: false,
+        status: 'account_locked',
+        message: 'تم إغلاق الحساب مؤقتاً لدواعي أمنية بسبب إدخال كلمة مرور خاطئة. يرجى استعادة الحساب.',
       });
     }
 
@@ -297,22 +316,38 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    if (user.status === 'suspended') {
-      return res.status(403).json({
+    // التحقق من كلمة المرور
+    let isMatch = false;
+    if (user.password && user.password.startsWith('$2')) {
+      isMatch = await bcrypt.compare(password, user.password);
+    } else if (user.password) {
+      const crypto = require('crypto');
+      const sha256 = (str) => crypto.createHash('sha256').update(str).digest('hex');
+      isMatch = (user.password === password || user.password === sha256(password));
+    }
+
+    if (!isMatch) {
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+      if (user.failedLoginAttempts >= 3) {
+        user.isLocked = true;
+        await user.save();
+        return res.status(403).json({
+          success: false,
+          status: 'account_locked',
+          message: 'تم إغلاق الحساب بسبب إدخال كلمة مرور خاطئة 3 مرات متتالية. يرجى استعادة الحساب.',
+        });
+      }
+      await user.save();
+      const remaining = 3 - user.failedLoginAttempts;
+      return res.status(401).json({
         success: false,
-        message: 'تم إيقاف حسابك. يرجى التواصل مع الدعم.',
-        status: 'suspended',
+        message: `كلمة المرور غير صحيحة. يتبقى لك ${remaining} ${remaining === 1 ? 'محاولة واحدة' : 'محاولات'} قبل إغلاق الحساب.`,
       });
     }
 
-    // التحقق من كلمة المرور
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
-      });
-    }
+    // إعادة تعيين محاولات الدخول الخاطئة عند النجاح
+    user.failedLoginAttempts = 0;
+    user.isLocked = false;
 
     // تحديث معرف الجهاز
     if (deviceId) {
@@ -472,22 +507,31 @@ router.get('/search/:accountNumber', auth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════
-// POST /api/users/recovery/questions — جلب أسئلة الأمان
 // ═══════════════════════════════════════════════════════════
-router.get('/recover/questions/:accountNumber', async (req, res) => {
+// RECOVERY ROUTES (استعادة الحساب المغلق)
+// ═══════════════════════════════════════════════════════════
+
+// 1. جلب أسئلة الأمان للحساب
+router.get(['/recover/questions/:accountNumber', '/recovery/questions/:accountNumber'], async (req, res) => {
   try {
-    const user = await User.findOne({ accountNumber: req.params.accountNumber });
+    const accParam = (req.params.accountNumber || '').trim();
+    const user = await User.findOne({
+      $or: [
+        { accountNumber: accParam },
+        { email: accParam.toLowerCase() },
+      ]
+    });
     if (!user) {
       return res.status(404).json({ success: false, message: 'الحساب غير موجود' });
     }
     if (!user.securityQuestions || user.securityQuestions.length === 0) {
-      return res.status(400).json({ success: false, message: 'لم يتم إعداد أسئلة أمان لهذا الحساب' });
+      return res.status(400).json({ success: false, message: 'لم يتم إعداد أسئلة أمان لهذا الحساب مسبقاً.' });
     }
     const questions = user.securityQuestions.map((q, i) => ({
       index: i,
       question: q.question,
     }));
-    const hasSetPin = !!(user.hasSetPin && user.pinHash && user.pinHash.trim().length > 0);
+    const hasSetPin = Boolean(user.hasSetPin && user.pinHash && user.pinHash.trim().length > 0);
     res.json({ success: true, questions, hasSetPin });
   } catch (err) {
     console.error('[RECOVERY-GET-Q] Error:', err);
@@ -495,61 +539,80 @@ router.get('/recover/questions/:accountNumber', async (req, res) => {
   }
 });
 
-router.post('/recovery/questions', async (req, res) => {
+// 2. التحقق من إجابات أسئلة الأمان
+router.post(['/recover/verify-questions', '/recovery/verify-questions', '/recovery/verify'], async (req, res) => {
   try {
-    const { accountNumber } = req.body;
-    const user = await User.findOne({ accountNumber });
+    const { accountNumber, answers } = req.body;
+    const user = await User.findOne({
+      $or: [
+        { accountNumber: (accountNumber || '').trim() },
+        { email: (accountNumber || '').toLowerCase().trim() }
+      ]
+    });
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'الحساب غير موجود',
-      });
+    if (!user || !user.securityQuestions || user.securityQuestions.length === 0) {
+      return res.status(404).json({ success: false, message: 'الحساب أو أسئلة الأمان غير موجودة' });
     }
 
-    if (!user.securityQuestions || user.securityQuestions.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'لم يتم إعداد أسئلة أمان لهذا الحساب',
-      });
+    const crypto = require('crypto');
+    const sha256 = (str) => crypto.createHash('sha256').update(str).digest('hex');
+
+    let correct = 0;
+    for (const ans of (answers || [])) {
+      const userQ = user.securityQuestions.find(sq => sq.question === ans.question);
+      if (userQ) {
+        const inputAnswer = (ans.answer || '').trim().toLowerCase();
+        const storedAnswer = (userQ.answer || '').trim().toLowerCase();
+        const storedHash = (userQ.answerHash || '').trim();
+        if (inputAnswer === storedAnswer || (storedHash && sha256(inputAnswer) === storedHash)) {
+          correct++;
+        }
+      }
     }
 
-    // إرجاع الأسئلة فقط بدون الإجابات
-    const questions = user.securityQuestions.map((q, i) => ({
-      index: i,
-      question: q.question,
-    }));
-
-    const hasSetPin = !!(user.hasSetPin && user.pinHash && user.pinHash.trim().length > 0);
-    res.json({ success: true, questions, hasSetPin });
+    if (correct >= 1 && correct >= Math.min(2, user.securityQuestions.length)) {
+      return res.json({ success: true, message: 'الإجابات صحيحة' });
+    } else {
+      return res.status(400).json({ success: false, message: 'إجابات أسئلة الأمان غير صحيحة' });
+    }
   } catch (err) {
-    console.error('[RECOVERY-Q] Error:', err);
+    console.error('[RECOVER-VERIFY-Q] Error:', err);
     res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
   }
 });
 
-// ═══════════════════════════════════════════════════════════
-// POST /api/users/recovery/verify — التحقق من إجابات الأمان
-// ═══════════════════════════════════════════════════════════
-router.post('/recovery/verify', async (req, res) => {
+// 3. التحقق من البريد والـ PIN وإرسال OTP
+router.post(['/recover/verify-pin', '/recovery/verify-pin'], async (req, res) => {
   try {
-    const { accountNumber, answers } = req.body;
-    const user = await User.findOne({ accountNumber });
+    const { accountNumber, email, pin } = req.body;
+    const user = await User.findOne({
+      $or: [
+        { accountNumber: (accountNumber || '').trim() },
+        { email: (accountNumber || '').toLowerCase().trim() }
+      ]
+    });
 
-    if (!user || !user.securityQuestions) {
+    if (!user) {
       return res.status(404).json({ success: false, message: 'الحساب غير موجود' });
     }
 
-    // التحقق من الإجابات
-    const allCorrect = user.securityQuestions.every((q, i) => {
-      return answers[i] && answers[i].toLowerCase().trim() === q.answer.toLowerCase().trim();
-    });
-
-    if (!allCorrect) {
-      return res.status(400).json({ success: false, message: 'الإجابات غير صحيحة' });
+    const inputEmail = (email || '').toLowerCase().trim();
+    const userEmail = (user.email || '').toLowerCase().trim();
+    if (inputEmail !== userEmail) {
+      return res.status(400).json({ success: false, message: 'البريد الإلكتروني غير متطابق مع بيانات الحساب' });
     }
 
-    // إرسال OTP للبريد
+    // إذا كان الحساب يمتلك PIN وتم تفعيله نتحقق منه
+    if (user.hasSetPin && user.pinHash && user.pinHash.trim().length > 0) {
+      const crypto = require('crypto');
+      const sha256 = (str) => crypto.createHash('sha256').update(str).digest('hex');
+      const inputPin = (pin || '').trim();
+      if (user.pinHash !== sha256(inputPin) && user.pin !== inputPin) {
+        return res.status(400).json({ success: false, message: 'رمز الـ PIN غير صحيح' });
+      }
+    }
+
+    // توليد OTP
     const otpCode = generateOtp();
     user.otpCode = otpCode;
     user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -559,45 +622,55 @@ router.post('/recovery/verify', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'تم إرسال رمز التحقق لبريدك الإلكتروني',
-      email: user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3'),
+      message: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني بنجاح',
+      email: user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3')
     });
   } catch (err) {
-    console.error('[RECOVERY-V] Error:', err);
+    console.error('[RECOVER-VERIFY-PIN] Error:', err);
     res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
   }
 });
 
-// ═══════════════════════════════════════════════════════════
-// POST /api/users/recovery/reset — إعادة تعيين كلمة المرور
-// ═══════════════════════════════════════════════════════════
-router.post('/recovery/reset', async (req, res) => {
+// 4. إعادة تعيين كلمة المرور وإلغاء القفل
+router.post(['/recover/reset-password', '/recovery/reset-password', '/recovery/reset'], async (req, res) => {
   try {
-    const { email, otpCode, newPassword, pin } = req.body;
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    const { accountNumber, email, otpCode, newPassword } = req.body;
+    const user = await User.findOne({
+      $or: [
+        { accountNumber: (accountNumber || '').trim() },
+        { email: (email || accountNumber || '').toLowerCase().trim() }
+      ]
+    });
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'الحساب غير موجود' });
     }
 
-    if (user.otpCode !== otpCode) {
-      return res.status(400).json({ success: false, message: 'رمز التحقق غير صحيح' });
+    if (!user.otpCode || user.otpCode !== (otpCode || '').trim()) {
+      return res.status(400).json({ success: false, message: 'رمز التحقق (OTP) غير صحيح' });
     }
 
     if (user.otpExpiry && new Date() > user.otpExpiry) {
-      return res.status(400).json({ success: false, message: 'انتهت صلاحية رمز التحقق' });
+      return res.status(400).json({ success: false, message: 'انتهت صلاحية رمز التحقق. يرجى طلب رمز جديد.' });
     }
 
-    // تحديث كلمة المرور
+    // تعيين كلمة المرور الجديدة وإلغاء القفل
     user.password = await bcrypt.hash(newPassword, 12);
+    const crypto = require('crypto');
+    user.loginPasswordHash = crypto.createHash('sha256').update(newPassword).digest('hex');
     user.otpCode = null;
     user.otpExpiry = null;
-    user.status = 'active';
+    user.isLocked = false;
+    user.failedLoginAttempts = 0;
+    if (user.status === 'suspended') user.status = 'active';
     await user.save();
 
-    res.json({ success: true, message: 'تم إعادة تعيين كلمة المرور بنجاح' });
+    res.json({
+      success: true,
+      message: 'تم استعادة الحساب وإلغاء القفل وتعيين كلمة المرور بنجاح 🎉'
+    });
   } catch (err) {
-    console.error('[RECOVERY-R] Error:', err);
+    console.error('[RECOVER-RESET-PASS] Error:', err);
     res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
   }
 });

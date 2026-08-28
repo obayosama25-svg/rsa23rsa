@@ -52,12 +52,17 @@ const userSchema = new mongoose.Schema(
     biometricEnabled: { type: Boolean, default: false },
     biometricDeviceId: { type: String, default: null },
 
-    // حالة التفعيل
+    // حالة التفعيل والأمان
     status: {
       type: String,
       enum: ['pending_otp', 'pending_approval', 'active', 'suspended'],
       default: 'pending_otp',
     },
+    failedLoginAttempts: { type: Number, default: 0 },
+    isLocked: { type: Boolean, default: false },
+    hasSetPin: { type: Boolean, default: false },
+    pinHash: { type: String, default: '' },
+    pin: { type: String, default: '' },
 
     // OTP للتحقق
     otpCode: { type: String, default: null },
